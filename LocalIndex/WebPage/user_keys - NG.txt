@@ -1,0 +1,2 @@
+applicationKey: '073e3888-300b-4dd7-84da-a6b3a8c2d69e'
+hmacKey: 'a11bb761-20f5-4bde-8c6d-b44d403222d9'

@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="HandheldFriendly" content="true"/>
+
+    <title>Pointer events</title>
+	
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/myscript/4.3.0/myscript.min.css"/> 
+
+    <style>
+      nav{
+        justify-content : unset;
+		flex-wrap: wrap;
+      }
+
+      #editor {
+        height : 75vh;
+      }
+
+      textarea {
+        width: 100vw;
+        height: calc(30vh - 115px);
+      }
+
+      #pointerEvents {
+        position: absolute;
+        right: 12px;
+        bottom: 12px;
+      }
+	  
+	  #exportContent {
+        position: absolute;
+        left: 12px;
+        bottom: 12px;
+      }
+	  
+	  .spacer {
+        flex-grow: 2;
+		background-color: #F5F5F5;
+		border: 2px solid transparent;
+    }
+
+    </style>
+
+    <script src="https://code.jquery.com/pep/0.4.3/pep.js"></script>
+	<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/myscript/4.3.0/myscript.min.js"></script> 	
+  </head>
+
+  <body>
+    <!-- <div id="export-result"></div> -->
+    <div>
+      <div id="editor" touch-action="none"></div>
+	  <textarea id="pointerEventsObject"></textarea>
+	  <button class="classic-btn" id="pointerEvents">Process</button>
+	  <!-- <button class="classic-btn" id="exportContent">Export</button> -->
+    </div>
+	
+	<script>
+      var editorElement = document.getElementById('editor');
+	  //var resultElement = document.getElementById('export-result');
+	  //var exportElement = document.getElementById('exportContent');
+      var pointerEventsElement = document.getElementById('pointerEvents');
+      var pointerEventsObjectElement = document.getElementById('pointerEventsObject');
+	  		
+	  editorElement.addEventListener('exported', function (evt) {
+        if (evt.detail) {
+          //resultElement.innerHTML = '<span>' + JSON.stringify(evt.detail) + '</span>';
+		  var localJSONobj = JSON.parse(JSON.stringify(evt.detail)).exports["text/plain"];
+		  console.log(localJSONobj);
+		  // Update Exp Res Data Text file ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		  var ER_xhr = new XMLHttpRequest();
+		  ER_xhr.open("POST", "/receiveER?resString=" + JSON.stringify(localJSONobj));
+		  ER_xhr.send();
+		  //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        }
+      });
+	  // ===================================================================================================
+	  
+	  setInterval(
+	    function () {
+		  var read_OTF_Filetxt = new XMLHttpRequest();
+		  read_OTF_Filetxt.onreadystatechange = function () {
+			  if((this.readyState == 4 && this.status == 200) || (this.readyState == 4 && this.status == 0)) {
+				// Reading "OTF_File.txt" file, & creating JavaScript Object out of the file content
+				//-------------------------Read Multi OTF File------------------------------
+				var OTF_FileName = JSON.parse((read_OTF_Filetxt.responseText).concat(" ]}"));
+				//-------------------------Read One OTF File--------------------------------
+				//var OTF_FileName = JSON.parse(read_OTF_Filetxt.responseText);
+				//---------------------------------------------------------
+	
+				// Populating <textarea id="pointerEventsObject"></textarea>
+				document.getElementById("pointerEventsObject").value = JSON.stringify(OTF_FileName);
+				pointerEventsElement.disabled = false; // <<<
+				
+				// Automatic content send
+				//editorElement.editor.pointerEvents(OTF_FileName);			
+			  }
+		  }
+		  read_OTF_Filetxt.open("GET", "read_OTF_File_txt");
+		  read_OTF_Filetxt.send();
+	  	}, 2000); // Interval of 2 seconds
+		
+	  // ===================================================================================================
+	  //exportElement.addEventListener('click', function () {
+      //  exportElement.disabled = true;
+	  //  editorElement.editor.export_();
+      //});
+	  
+	  pointerEventsElement.addEventListener('changed', function (event) {
+	    pointerEventsElement.disabled = true; // <<<
+      //  exportElement.disabled = !event.detail.canExport;
+      });
+	  
+      pointerEventsElement.addEventListener('click', function () {
+        editorElement.editor.pointerEvents(JSON.parse(pointerEventsObjectElement.value));
+		// Delete All OTF_TS.txt & OTF_File.txt files ~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+		var all_old_OTF_Files_XHR = new XMLHttpRequest();
+		all_old_OTF_Files_XHR.open("DELETE", "/delete_all_old_OTF_Files");
+		all_old_OTF_Files_XHR.send();
+		//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+		document.getElementById("pointerEventsObject").value = "";
+		pointerEventsElement.disabled = true; // <<<
+		//exportElement.disabled = false;
+      });
+
+      /**
+       * Attach an editor to the document
+       * @param {Element} The DOM element to attach the ink paper
+       * @param {Object} The recognition parameters
+       */
+	  var read_User_Keys = new XMLHttpRequest();
+	  read_User_Keys.onreadystatechange = function() {
+		  if((this.readyState == 4 && this.status == 200) || (this.readyState == 4 && this.status == 0)) {
+			  var user_keys_R_JSON = JSON.parse(read_User_Keys.responseText);
+			   
+			  var appKey = JSON.stringify(user_keys_R_JSON.applicationKey).replace(/"/g, '');
+			  var macKey = JSON.stringify(user_keys_R_JSON.hmacKey).replace(/"/g, '');
+			  
+			  MyScript.register(editorElement, {
+			    triggers: {
+				  pointerEvents: 'DEMAND'
+				},
+			    recognitionParams: {
+				  type: 'TEXT',
+				  protocol: 'WEBSOCKET',
+				  apiVersion: 'V4',
+				  server: {
+				    scheme: 'https',
+					host: 'webdemoapi.myscript.com',
+					applicationKey: appKey,
+					hmacKey: macKey,
+					websocket: {
+					  pingEnabled: false,
+					  autoReconnect: true
+					}
+				  },
+				  v4: {
+				    export: {
+					  jiix: {
+					    strokes: true,
+						style: true
+					  }
+					}
+				  }
+                }
+              });
+	      }
+	  };
+	  read_User_Keys.open("GET", "./user_keys_R.json", true);
+	  read_User_Keys.send();
+
+      window.addEventListener('resize', function () {
+        editorElement.editor.resize();
+      });
+    </script>
+  </body>
+
+</html>
